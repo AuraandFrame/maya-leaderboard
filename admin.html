@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maya in Moments — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: 'Lato', sans-serif; background: #F9F7FF; min-height: 100vh; }
+
+    .page { max-width: 500px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .admin-header { font-family: 'Playfair Display', serif; font-size: 24px; color: #2E2C2C; margin-bottom: 4px; }
+    .admin-sub { font-size: 12px; color: #9F9684; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 28px; }
+
+    .card { background: white; border-radius: 12px; border: 1px solid rgba(107,78,138,0.12); padding: 20px; margin-bottom: 20px; }
+    .card-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #9F9684; margin-bottom: 14px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .form-group label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9F9684; }
+    .form-group input { padding: 11px 14px; border: 1px solid rgba(107,78,138,0.25); border-radius: 8px; font-family: 'Lato', sans-serif; font-size: 15px; color: #2E2C2C; outline: none; background: #FDFBFF; }
+    .form-group input:focus { border-color: #BE99CA; box-shadow: 0 0 0 3px rgba(190,153,202,0.15); }
+
+    .add-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, #BE99CA, #6B4E8A); color: white; border: none; border-radius: 8px; font-family: 'Lato', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; margin-top: 4px; transition: opacity 0.2s; }
+    .add-btn:hover { opacity: 0.88; }
+    .add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .toast { position: fixed; top: 20px; right: 20px; background: #6B4E8A; color: white; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; opacity: 0; transition: opacity 0.3s; z-index: 100; }
+    .toast.show { opacity: 1; }
+
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .clear-btn { font-size: 12px; color: #CF9EBC; background: none; border: none; cursor: pointer; text-decoration: underline; font-family: 'Lato', sans-serif; }
+
+    .entry { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: #FDFBFF; border: 1px solid rgba(107,78,138,0.1); border-radius: 8px; margin-bottom: 8px; }
+    .entry-rank { font-family: 'Playfair Display', serif; font-size: 13px; color: #BE99CA; min-width: 24px; text-align: center; }
+    .entry-name { flex: 1; font-size: 14px; color: #2E2C2C; }
+    .entry-score-input { width: 80px; padding: 5px 8px; border: 1px solid rgba(107,78,138,0.25); border-radius: 6px; font-family: 'Playfair Display', serif; font-size: 14px; color: #6B4E8A; text-align: right; outline: none; background: white; }
+    .entry-score-input:focus { border-color: #BE99CA; box-shadow: 0 0 0 2px rgba(190,153,202,0.15); }
+    .del-btn { background: none; border: none; cursor: pointer; color: #CF9EBC; font-size: 16px; padding: 2px 4px; transition: color 0.15s; }
+    .del-btn:hover { color: #E24B4A; }
+
+    .empty { text-align: center; padding: 28px; color: #BE99CA; font-size: 13px; }
+    .total { text-align: center; margin-top: 12px; font-size: 12px; color: #9F9684; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="admin-header">Attendant Panel</div>
+    <div class="admin-sub">Maya in Moments · Cash Cube</div>
+
+    <div class="card">
+      <div class="card-title">Add Player</div>
+      <div class="form-group">
+        <label>Player Name</label>
+        <input type="text" id="name-input" placeholder="e.g. Jordan Smith" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label>Score ($)</label>
+        <input type="number" id="score-input" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <button class="add-btn" id="add-btn" onclick="addPlayer()">Add to Leaderboard</button>
+    </div>
+
+    <div class="card">
+      <div class="list-header">
+        <div class="card-title" style="margin-bottom:0">All Players</div>
+        <button class="clear-btn" onclick="clearAll()">Clear all</button>
+      </div>
+      <div id="admin-list"><div class="empty">No players yet</div></div>
+      <div class="total" id="admin-total"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://auitwromplrdpyfvxikm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_iVFHksRMyx95dglqOG2F0A_2Sf0vGUf';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let players = [];
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function fmt(s) { return '$' + parseFloat(s).toFixed(2); }
+
+    async function loadPlayers() {
+      const { data } = await sb.from('players').select('*').order('score', { ascending: false });
+      players = data || [];
+      renderAdmin();
+    }
+
+    function renderAdmin() {
+      const list = document.getElementById('admin-list');
+      const total = document.getElementById('admin-total');
+      if (players.length === 0) {
+        list.innerHTML = '<div class="empty">No players yet — add the first one above</div>';
+        total.textContent = '';
+        return;
+      }
+      list.innerHTML = players.map((p, i) => `
+        <div class="entry">
+          <div class="entry-rank">#${i+1}</div>
+          <div class="entry-name">${p.name}</div>
+          <input class="entry-score-input" type="number" value="${parseFloat(p.score).toFixed(2)}" step="0.01" min="0"
+            onblur="updateScore(${p.id}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
+          <button class="del-btn" onclick="deletePlayer(${p.id})">&#10005;</button>
+        </div>
+      `).join('');
+      total.textContent = players.length + ' player' + (players.length !== 1 ? 's' : '') + ' total — top 5 shown on display';
+    }
+
+    async function addPlayer() {
+      const name = document.getElementById('name-input').value.trim();
+      const score = parseFloat(document.getElementById('score-input').value);
+      if (!name || isNaN(score)) { showToast('Enter a name and score'); return; }
+      const btn = document.getElementById('add-btn');
+      btn.disabled = true; btn.textContent = 'Adding...';
+      const { error } = await sb.from('players').insert([{ name, score }]);
+      btn.disabled = false; btn.textContent = 'Add to Leaderboard';
+      if (error) { showToast('Error — try again'); return; }
+      document.getElementById('name-input').value = '';
+      document.getElementById('score-input').value = '';
+      document.getElementById('name-input').focus();
+      showToast(name + ' added!');
+      loadPlayers();
+    }
+
+    async function updateScore(id, val) {
+      const score = parseFloat(val) || 0;
+      await sb.from('players').update({ score }).eq('id', id);
+      showToast('Score updated');
+      loadPlayers();
+    }
+
+    async function deletePlayer(id) {
+      await sb.from('players').delete().eq('id', id);
+      showToast('Player removed');
+      loadPlayers();
+    }
+
+    async function clearAll() {
+      if (players.length === 0) return;
+      if (!confirm('Clear ALL players? This cannot be undone.')) return;
+      await sb.from('players').delete().neq('id', 0);
+      showToast('All players cleared');
+      loadPlayers();
+    }
+
+    document.getElementById('score-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+    document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('score-input').focus(); });
+
+    loadPlayers();
+  </script>
+</body>
+</html>
