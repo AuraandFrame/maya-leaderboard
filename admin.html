@@ -43,10 +43,51 @@
 
     .empty { text-align: center; padding: 28px; color: #BE99CA; font-size: 13px; }
     .total { text-align: center; margin-top: 12px; font-size: 12px; color: #9F9684; }
+
+    .pin-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, #FFF4EC 0%, #F5E8F5 40%, #E8E0F0 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; flex-direction: column; gap: 24px;
+    }
+    .pin-box {
+      background: white; border-radius: 16px; padding: 36px 32px;
+      border: 1px solid rgba(107,78,138,0.15); text-align: center;
+      max-width: 320px; width: 90%;
+    }
+    .pin-logo { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700;
+      background: linear-gradient(135deg, #FECC6C 0%, #FCBA7B 40%, #BE99CA 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 6px;
+    }
+    .pin-sub { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #6B4E8A; margin-bottom: 24px; }
+    .pin-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9F9684; margin-bottom: 8px; }
+    .pin-input { width: 100%; padding: 14px; border: 1px solid rgba(107,78,138,0.25); border-radius: 8px;
+      font-family: 'Lato', sans-serif; font-size: 22px; text-align: center; letter-spacing: 0.3em;
+      color: #2E2C2C; outline: none; background: #FDFBFF; margin-bottom: 14px;
+    }
+    .pin-input:focus { border-color: #BE99CA; box-shadow: 0 0 0 3px rgba(190,153,202,0.15); }
+    .pin-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, #BE99CA, #6B4E8A);
+      color: white; border: none; border-radius: 8px; font-family: 'Lato', sans-serif;
+      font-size: 14px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; transition: opacity 0.2s;
+    }
+    .pin-btn:hover { opacity: 0.88; }
+    .pin-error { color: #E24B4A; font-size: 13px; margin-top: 10px; display: none; font-family: 'Lato', sans-serif; }
   </style>
 </head>
 <body>
-  <div class="page">
+  <div class="pin-overlay" id="pin-overlay">
+    <div class="pin-box">
+      <div class="pin-logo">Maya Moolah</div>
+      <div class="pin-sub">Attendant Access Only</div>
+      <div class="pin-label">Enter PIN to continue</div>
+      <input class="pin-input" type="password" id="pin-input" maxlength="6" placeholder="••••••" />
+      <button class="pin-btn" onclick="checkPin()">Unlock</button>
+      <div class="pin-error" id="pin-error">Incorrect PIN — try again</div>
+    </div>
+  </div>
+
+  <div class="page" id="main-content" style="display:none">
     <div class="admin-header">Attendant Panel</div>
     <div class="admin-sub">Maya in Moments · Cash Cube</div>
 
@@ -157,6 +198,30 @@
     document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('score-input').focus(); });
 
     loadPlayers();
+
+    function checkPin() {
+      const val = document.getElementById('pin-input').value;
+      if (val === '6121') {
+        document.getElementById('pin-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        sessionStorage.setItem('mim_auth', '1');
+      } else {
+        document.getElementById('pin-error').style.display = 'block';
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('mim_auth') === '1') {
+        document.getElementById('pin-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+      }
+      document.getElementById('pin-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') checkPin();
+      });
+    });
   </script>
+  </div>
 </body>
 </html>
